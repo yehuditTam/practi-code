@@ -5,9 +5,19 @@ These are the 3 main test cases required by the exercise
 import pytest
 from datetime import time, timedelta
 from pathlib import Path
-from io_comp.csv_reader import read_calendar_csv
-from io_comp.scheduler import find_available_slots
+from io_comp.services.csv_reader_service import CSVReaderService
+from io_comp.services.calendar_service import CalendarService
 from io_comp.models import CalendarEvent
+
+
+# Helper functions for backward compatibility
+def read_calendar_csv(file_path):
+    service = CSVReaderService()
+    return service.read_calendar(file_path)
+
+def find_available_slots(person_list, event_duration, all_events):
+    service = CalendarService()
+    return service.find_available_slots(person_list, event_duration, all_events)
 
 
 class TestCalendarSchedulerIntegration:

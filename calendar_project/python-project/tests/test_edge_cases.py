@@ -4,8 +4,15 @@ Critical edge case tests - the ones interviewers love to ask about
 import pytest
 from datetime import time, timedelta
 from io_comp.models import CalendarEvent
-from io_comp.scheduler import find_available_slots
-from io_comp.interval_merger import merge_overlapping_intervals
+from io_comp.services.calendar_service import CalendarService
+from io_comp.utils.interval_utils import merge_overlapping_intervals
+
+
+# Helper function to maintain backward compatibility with tests
+def find_available_slots(person_list, event_duration, all_events):
+    """Wrapper function for tests to use the service"""
+    service = CalendarService()
+    return service.find_available_slots(person_list, event_duration, all_events)
 
 
 class TestBackToBackMeetings:

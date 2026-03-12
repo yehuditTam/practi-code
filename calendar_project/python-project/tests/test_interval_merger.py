@@ -4,7 +4,7 @@ Unit tests for interval merging algorithms
 import pytest
 from datetime import time
 from io_comp.models import CalendarEvent, TimeSlot
-from io_comp.interval_merger import (
+from io_comp.utils.interval_utils import (
     merge_overlapping_intervals,
     get_busy_blocks_for_person,
     get_busy_blocks_for_multiple_people

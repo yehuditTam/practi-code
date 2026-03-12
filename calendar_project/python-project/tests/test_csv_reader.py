@@ -4,7 +4,8 @@ Unit tests for CSV reader
 import pytest
 from datetime import time
 from pathlib import Path
-from io_comp.csv_reader import parse_time, read_calendar_csv
+from io_comp.utils.time_utils import parse_time
+from io_comp.services.csv_reader_service import CSVReaderService
 from io_comp.models import CalendarEvent
 
 
@@ -41,7 +42,8 @@ class TestReadCalendarCSV:
         """Test reading the provided calendar.csv file"""
         file_path = Path(__file__).parent.parent / "resources" / "calendar.csv"
         
-        events = read_calendar_csv(str(file_path))
+        csv_reader = CSVReaderService()
+        events = csv_reader.read_calendar(str(file_path))
         
         # Should have 12 events in the example file
         assert len(events) == 12
@@ -58,13 +60,15 @@ class TestReadCalendarCSV:
     
     def test_read_nonexistent_file(self):
         """Test that reading non-existent file raises FileNotFoundError"""
+        csv_reader = CSVReaderService()
         with pytest.raises(FileNotFoundError):
-            read_calendar_csv("nonexistent_file.csv")
+            csv_reader.read_calendar("nonexistent_file.csv")
     
     def test_events_grouped_by_person(self):
         """Test that we can group events by person"""
         file_path = Path(__file__).parent.parent / "resources" / "calendar.csv"
-        events = read_calendar_csv(str(file_path))
+        csv_reader = CSVReaderService()
+        events = csv_reader.read_calendar(str(file_path))
         
         # Count events per person
         alice_events = [e for e in events if e.participant_name == "Alice"]
