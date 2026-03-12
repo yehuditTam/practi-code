@@ -4,14 +4,14 @@ Unit tests for scheduler - finding available time slots
 import pytest
 from datetime import time, timedelta
 from io_comp.models import CalendarEvent
-from io_comp.scheduler import (
-    find_available_slots,
-    format_available_slots,
-    time_to_minutes,
-    minutes_to_time,
-    WORK_DAY_START,
-    WORK_DAY_END
-)
+from io_comp.services.calendar_service import CalendarService, WORK_DAY_START, WORK_DAY_END
+from io_comp.utils.time_utils import time_to_minutes, minutes_to_time, format_available_slots
+
+
+# Helper function for backward compatibility
+def find_available_slots(person_list, event_duration, all_events):
+    service = CalendarService()
+    return service.find_available_slots(person_list, event_duration, all_events)
 
 
 class TestTimeConversion:
