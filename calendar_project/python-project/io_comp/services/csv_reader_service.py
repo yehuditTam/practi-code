@@ -1,97 +1,79 @@
 """
-CSV Reader Service
+CSV implementation of CalendarRepository.
 
-Responsible for reading and parsing calendar events from CSV files.
-This service handles file I/O and data transformation.
-
-Performance: O(n) where n is the number of rows in the CSV file.
+Reads calendar events from a CSV file.
+Performance: O(n) where n is the number of rows.
 """
 import csv
+import logging
 from pathlib import Path
 from typing import List
 
+from io_comp.repository import CalendarRepository
 from io_comp.models import CalendarEvent
 from io_comp.utils.time_utils import parse_time
+from io_comp.exceptions import CalendarFileNotFoundError, InvalidCalendarRowError
+
+logger = logging.getLogger(__name__)
 
 
-class CSVReaderService:
+class CSVCalendarRepository(CalendarRepository):
     """
-    Service for reading calendar events from CSV files.
-    
-    This service is responsible for:
-    - File validation and error handling
-    - CSV parsing
-    - Data transformation from CSV rows to CalendarEvent objects
-    
-    The service is stateless and thread-safe.
+    Loads calendar events from a CSV file.
+
+    Implements CalendarRepository so it can be injected into any service
+    that depends on the abstract interface.
+
+    Expected CSV format: Name, Subject, StartTime, EndTime
+    Example row: Alice,"Morning meeting",08:00,09:30
     """
-    
-    def read_calendar(self, file_path: str) -> List[CalendarEvent]:
+
+    def load_events(self, source: str) -> List[CalendarEvent]:
         """
-        Read calendar events from a CSV file.
-        
-        Expected CSV format: Name, Subject, StartTime, EndTime
-        Example: Alice,"Morning meeting",08:00,09:30
-        
+        Load calendar events from a CSV file path.
+
         Args:
-            file_path: Path to the CSV file
-            
+            source: Path to the CSV file
+
         Returns:
-            List of CalendarEvent objects
-            
+            List of CalendarEvent objects (invalid rows are skipped with a warning)
+
         Raises:
-            FileNotFoundError: If the file does not exist
-            ValueError: If the CSV format is invalid
-            
-        Performance:
-            Time Complexity: O(n) where n is the number of rows
-            Space Complexity: O(n) for storing all events
+            CalendarFileNotFoundError: If the file does not exist
         """
-        path = Path(file_path)
-        
+        path = Path(source)
+
         if not path.exists():
-            raise FileNotFoundError(f"Calendar file not found: {file_path}")
-        
+            raise CalendarFileNotFoundError(f"Calendar file not found: {source}")
+
         events = []
-        
+
         with open(path, 'r', encoding='utf-8') as file:
-            csv_reader = csv.reader(file)
-            
-            for line_num, row in enumerate(csv_reader, start=1):
+            for line_num, row in enumerate(csv.reader(file), start=1):
                 try:
-                    event = self._parse_row(row)
-                    events.append(event)
-                except (ValueError, IndexError) as e:
-                    # Log warning but continue processing
-                    print(f"Warning: Skipping invalid row {line_num}: {row}. Error: {e}")
-                    continue
-        
+                    events.append(self._parse_row(row))
+                except InvalidCalendarRowError as e:
+                    logger.warning("Skipping invalid row %d: %s. Reason: %s", line_num, row, e)
+
+        logger.info("Loaded %d events from %s", len(events), source)
         return events
-    
+
     def _parse_row(self, row: List[str]) -> CalendarEvent:
         """
         Parse a single CSV row into a CalendarEvent.
-        
-        Args:
-            row: List of strings from CSV row
-            
-        Returns:
-            CalendarEvent object
-            
+
         Raises:
-            ValueError: If row format is invalid
+            InvalidCalendarRowError: If the row cannot be parsed
         """
         if len(row) != 4:
-            raise ValueError(f"Expected 4 columns, got {len(row)}")
-        
-        participant_name = row[0].strip()
-        subject = row[1].strip().strip('"')  # Remove quotes if present
-        start_time = parse_time(row[2])
-        end_time = parse_time(row[3])
-        
-        return CalendarEvent(
-            participant_name=participant_name,
-            subject=subject,
-            start_time=start_time,
-            end_time=end_time
-        )
+            raise InvalidCalendarRowError(f"Expected 4 columns, got {len(row)}")
+
+        try:
+            return CalendarEvent(
+                participant_name=row[0].strip(),
+                subject=row[1].strip().strip('"'),
+                start_time=parse_time(row[2]),
+                end_time=parse_time(row[3])
+            )
+        except Exception as e:
+            raise InvalidCalendarRowError(str(e)) from e
