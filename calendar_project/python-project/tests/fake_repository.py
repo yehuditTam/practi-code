@@ -21,6 +21,6 @@ class FakeCalendarRepository(CalendarRepository):
     def __init__(self, events: List[CalendarEvent]) -> None:
         self._events = events
 
-    def load_events(self, source: str) -> List[CalendarEvent]:
-        """Return the pre-loaded events, ignoring the source argument."""
+    def load_events(self) -> List[CalendarEvent]:
+        """Return the pre-loaded events."""
         return self._events

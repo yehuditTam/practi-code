@@ -18,7 +18,7 @@ def make_service(events: list) -> CalendarService:
 
 def find_slots(person_list, event_duration, events):
     """Helper: find available slots using a fake repository."""
-    return make_service(events).find_available_slots("fake", person_list, event_duration)
+    return make_service(events).find_available_slots(person_list, event_duration)
 
 
 class TestTimeConversion:

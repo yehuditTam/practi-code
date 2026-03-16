@@ -1,32 +1,28 @@
 """
-Repository Interfaces (Abstract Base Classes)
+Repository Interfaces (Protocols)
 
-Defines the contracts for data access.
+Defines the contracts for data access using structural typing with Protocols.
 Services depend on these abstractions, not on concrete implementations.
 This follows the Dependency Inversion Principle and makes testing easy
 by allowing Mock/Fake repositories to be injected.
 """
-from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Protocol
 
 from io_comp.models import CalendarEvent
 
 
-class CalendarRepository(ABC):
+class CalendarRepository(Protocol):
     """
-    Abstract interface for loading calendar events.
+    Protocol interface for loading calendar events.
 
-    Any data source (CSV, database, API) can implement this interface.
-    Services depend on this abstraction, not on a specific implementation.
+    Any data source (CSV, database, API) that implements this method
+    will be compatible with services expecting a CalendarRepository.
+    Uses structural typing instead of inheritance.
     """
 
-    @abstractmethod
-    def load_events(self, source: str) -> List[CalendarEvent]:
+    def load_events(self) -> List[CalendarEvent]:
         """
-        Load calendar events from a data source.
-
-        Args:
-            source: Identifier for the data source (e.g. file path, URL)
+        Load calendar events from the data source.
 
         Returns:
             List of CalendarEvent objects
@@ -35,4 +31,4 @@ class CalendarRepository(ABC):
             CalendarFileNotFoundError: If the source cannot be found
             InvalidCalendarRowError: If a row cannot be parsed
         """
-        pass
+        ...

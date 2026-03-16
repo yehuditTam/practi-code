@@ -32,6 +32,54 @@ Or use the installed console script:
 Comp-calendar
 ```
 
+#### CLI Arguments
+
+The application supports command-line arguments:
+
+```bash
+# Default usage (Alice and Jack, 60 minutes)
+python -m io_comp.app
+
+# Custom people and duration
+python -m io_comp.app --people Alice Bob Charlie --duration 30
+
+# Custom calendar file
+python -m io_comp.app --file /path/to/custom/calendar.csv --people Alice --duration 120
+
+# Show help
+python -m io_comp.app --help
+```
+
+#### Web API
+
+Run the REST API server:
+```bash
+python -m io_comp.api
+```
+
+The API will be available at `http://localhost:5000`
+
+API Endpoints:
+- `GET /health` - Health check
+- `GET /events` - Get all calendar events
+- `POST /schedule` - Find available slots
+
+Example API usage:
+```bash
+curl -X POST http://localhost:5000/schedule \
+  -H "Content-Type: application/json" \
+  -d '{"people": ["Alice", "Jack"], "duration_minutes": 60}'
+```
+
+#### GUI Application
+
+Run the graphical user interface:
+```bash
+python -m io_comp.gui
+```
+
+The GUI provides a simple interface to input people and duration, then displays available slots.
+
 ### Running Tests
 
 To run the tests:
@@ -48,12 +96,25 @@ pytest -v
 
 ```
 python-project/
-├── io_Comp/              # Main application package
+├── io_comp/              # Main application package
 │   ├── __init__.py
-│   └── app.py            # Application entry point
+│   ├── app.py            # CLI application entry point
+│   ├── api.py            # REST API server
+│   ├── gui.py            # GUI application
+│   ├── models.py         # Data models
+│   ├── repository.py     # Data access interfaces
+│   ├── exceptions.py     # Custom exceptions
+│   ├── services/         # Business logic
+│   │   ├── __init__.py
+│   │   ├── calendar_service.py
+│   │   └── csv_reader_service.py
+│   └── utils/            # Utility functions
+│       ├── __init__.py
+│       ├── interval_utils.py
+│       └── time_utils.py
 ├── tests/                # Test directory
 │   ├── __init__.py
-│   └── test_app.py       # Unit tests
+│   └── *.py              # Unit tests
 ├── resources/            # Resources directory
 │   └── calendar.csv      # Example calendar data
 ├── requirements.txt      # Python dependencies

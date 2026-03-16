@@ -13,7 +13,7 @@ from tests.fake_repository import FakeCalendarRepository
 
 def find_slots(person_list, event_duration, events):
     service = CalendarService(repository=FakeCalendarRepository(events))
-    return service.find_available_slots("fake", person_list, event_duration)
+    return service.find_available_slots(person_list, event_duration)
 
 
 class TestBackToBackMeetings:

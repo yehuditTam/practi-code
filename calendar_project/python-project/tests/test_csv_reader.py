@@ -36,8 +36,8 @@ class TestParseTime:
 class TestCSVCalendarRepository:
 
     def test_load_existing_calendar_file(self):
-        repo = CSVCalendarRepository()
-        events = repo.load_events(CALENDAR_FILE)
+        repo = CSVCalendarRepository(file_path=CALENDAR_FILE)
+        events = repo.load_events()
 
         assert len(events) == 12
         assert events[0].participant_name == "Alice"
@@ -47,13 +47,13 @@ class TestCSVCalendarRepository:
         assert all(isinstance(e, CalendarEvent) for e in events)
 
     def test_load_nonexistent_file(self):
-        repo = CSVCalendarRepository()
+        repo = CSVCalendarRepository(file_path="nonexistent_file.csv")
         with pytest.raises(CalendarFileNotFoundError):
-            repo.load_events("nonexistent_file.csv")
+            repo.load_events()
 
     def test_events_grouped_by_person(self):
-        repo = CSVCalendarRepository()
-        events = repo.load_events(CALENDAR_FILE)
+        repo = CSVCalendarRepository(file_path=CALENDAR_FILE)
+        events = repo.load_events()
 
         assert len([e for e in events if e.participant_name == "Alice"]) == 3
         assert len([e for e in events if e.participant_name == "Jack"]) == 4

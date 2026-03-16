@@ -2,9 +2,11 @@
 Calendar Scheduler Application - Entry Point
 
 Wires up dependencies and runs the scheduling example from the exercise.
+Supports CLI arguments for flexible scheduling.
 """
 import sys
 import logging
+import argparse
 from pathlib import Path
 from datetime import timedelta
 
@@ -16,35 +18,75 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
+def parse_arguments():
+    """
+    Parse command line arguments for the calendar scheduler.
+    
+    Returns:
+        Parsed arguments namespace
+    """
+    parser = argparse.ArgumentParser(
+        description="Find available meeting slots for a group of people",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python -m io_comp.app
+  python -m io_comp.app --people Alice Bob --duration 30
+  python -m io_comp.app --file /path/to/calendar.csv --people Alice --duration 120
+        """
+    )
+    
+    parser.add_argument(
+        "--people", "-p",
+        nargs="+",
+        default=["Alice", "Jack"],
+        help="List of people to find meeting slots for (default: Alice Jack)"
+    )
+    
+    parser.add_argument(
+        "--duration", "-d",
+        type=int,
+        default=60,
+        help="Meeting duration in minutes (default: 60)"
+    )
+    
+    parser.add_argument(
+        "--file", "-f",
+        type=str,
+        default=None,
+        help="Path to calendar CSV file (default: resources/calendar.csv)"
+    )
+    
+    return parser.parse_args()
+
+
 def main() -> None:
     """
-    Entry point: wire dependencies and run the exercise example.
-
-    Alice and Jack need a 60-minute meeting.
-    Expected output:
-        07:00
-        09:40 - 12:00
-        14:00 - 15:00
-        17:00 - 18:00
+    Entry point: parse CLI arguments, wire dependencies and run scheduling.
     """
-    calendar_file = Path(__file__).parent.parent / "resources" / "calendar.csv"
+    args = parse_arguments()
+    
+    # Determine calendar file path
+    if args.file:
+        calendar_file = Path(args.file)
+    else:
+        calendar_file = Path(__file__).parent.parent / "resources" / "calendar.csv"
 
     if not calendar_file.exists():
-        logger.error("Calendar file not found: %s", calendar_file.name)
+        logger.error("Calendar file not found: %s", calendar_file)
         sys.exit(1)
 
-    # Dependency Injection via constructor
-    repository = CSVCalendarRepository()
+    # Dependency Injection via constructor - file path stays out of the service
+    repository = CSVCalendarRepository(file_path=str(calendar_file))
     service = CalendarService(repository=repository)
 
     slots = service.find_available_slots(
-        source=str(calendar_file),
-        person_list=["Alice", "Jack"],
-        event_duration=timedelta(hours=1)
+        person_list=args.people,
+        event_duration=timedelta(minutes=args.duration)
     )
 
     print("\n" + "=" * 50)
-    print("Available Time Slots for Alice & Jack (60 min)")
+    print(f"Available Time Slots for {', '.join(args.people)} ({args.duration} min)")
     print("=" * 50)
     print(format_available_slots(slots))
     print("=" * 50 + "\n")

@@ -3,8 +3,10 @@ Calendar Service
 
 Core business logic for finding available meeting slots.
 Depends on CalendarRepository abstraction (Dependency Inversion Principle).
+Uses functional programming with filter and map for data processing.
 
-Algorithm Complexity: O(n log n) where n is the number of events.
+Algorithm Complexity: O(n log n + m) where n is the number of events, m is free minutes.
+Uses two-pointer algorithm for interval cutting in O(n + m) time.
 """
 import logging
 from datetime import time, timedelta
@@ -12,7 +14,7 @@ from typing import List
 
 from io_comp.repository import CalendarRepository
 from io_comp.models import CalendarEvent, TimeSlot
-from io_comp.utils.interval_utils import get_busy_blocks_for_multiple_people
+from io_comp.utils.interval_utils import get_busy_blocks_for_multiple_people, cut_intervals
 from io_comp.utils.time_utils import time_to_minutes, minutes_to_time
 
 logger = logging.getLogger(__name__)
@@ -53,7 +55,6 @@ class CalendarService:
 
     def find_available_slots(
         self,
-        source: str,
         person_list: List[str],
         event_duration: timedelta
     ) -> List[time]:
@@ -61,14 +62,22 @@ class CalendarService:
         Find all start times when every person in person_list is free.
 
         Args:
-            source: Data source identifier passed to the repository
             person_list: Names of all required attendees
             event_duration: Required meeting duration
 
         Returns:
             Sorted list of valid start times within working hours
         """
-        all_events = self._repository.load_events(source)
+        # Early exit: no people requested
+        if not person_list:
+            return []
+
+        all_events = self._repository.load_events()
+
+        # Early exit: no events at all → entire work day is free
+        if not all_events:
+            return self._slots_from_gaps([], event_duration)
+
         filtered = self._filter_to_work_hours(all_events)
         busy_blocks = get_busy_blocks_for_multiple_people(filtered, person_list)
 
@@ -86,19 +95,23 @@ class CalendarService:
     def _filter_to_work_hours(self, events: List[CalendarEvent]) -> List[CalendarEvent]:
         """
         Exclude events outside working hours; clip those that partially overlap.
-        O(n)
+        O(n) - using functional programming with filter and map
         """
-        filtered = []
-        for event in events:
-            if event.end_time <= self._work_start or event.start_time >= self._work_end:
-                continue
-            filtered.append(CalendarEvent(
+        def should_include(event: CalendarEvent) -> bool:
+            """Check if event overlaps with working hours."""
+            return not (event.end_time <= self._work_start or event.start_time >= self._work_end)
+        
+        def clip_to_work_hours(event: CalendarEvent) -> CalendarEvent:
+            """Clip event to working hours boundaries."""
+            return CalendarEvent(
                 participant_name=event.participant_name,
                 subject=event.subject,
                 start_time=max(event.start_time, self._work_start),
                 end_time=min(event.end_time, self._work_end)
-            ))
-        return filtered
+            )
+        
+        # Use functional programming: filter then map
+        return list(map(clip_to_work_hours, filter(should_include, events)))
 
     def _slots_from_gaps(
         self,
@@ -107,29 +120,34 @@ class CalendarService:
     ) -> List[time]:
         """
         Collect every valid start time from the gaps between busy blocks.
-        O(m) where m is total free minutes.
+        
+        Uses two-pointer algorithm to cut free intervals with busy intervals: O(n + m)
+        where n is number of busy blocks, m is total free minutes.
         """
         duration_minutes = int(event_duration.total_seconds() / 60)
-        work_start_min = time_to_minutes(self._work_start)
-        work_end_min = time_to_minutes(self._work_end)
+        work_minutes = time_to_minutes(self._work_end) - time_to_minutes(self._work_start)
 
-        # Build gap boundaries: [(gap_start, gap_end), ...]
-        if not busy_blocks:
-            gaps = [(work_start_min, work_end_min)]
-        else:
-            boundaries = (
-                [work_start_min]
-                + [m for b in busy_blocks for m in (time_to_minutes(b.start_time),
-                                                     time_to_minutes(b.end_time))]
-                + [work_end_min]
-            )
-            # Gaps are at even-indexed pairs: (boundaries[0], boundaries[1]),
-            # (boundaries[2], boundaries[3]), ...
-            gaps = [(boundaries[i], boundaries[i + 1]) for i in range(0, len(boundaries), 2)]
+        # Early exit: duration longer than entire work day
+        if duration_minutes > work_minutes:
+            return []
+
+        # Define the full free interval (working hours)
+        free_intervals = [TimeSlot(self._work_start, self._work_end)]
+
+        # Cut free intervals with busy blocks using two-pointer algorithm
+        remaining_free = cut_intervals(free_intervals, busy_blocks)
 
         result = []
-        for gap_start, gap_end in gaps:
-            latest_start = gap_end - duration_minutes
-            result.extend(range(gap_start, latest_start + 1))
-
+        for free_slot in remaining_free:
+            # Early exit per slot: skip slots too short for the meeting
+            if free_slot.duration_minutes() < duration_minutes:
+                continue
+            gap_start_min = time_to_minutes(free_slot.start_time)
+            gap_end_min = time_to_minutes(free_slot.end_time)
+            
+            # Find all valid start times within this free slot
+            latest_start = gap_end_min - duration_minutes
+            if latest_start >= gap_start_min:
+                result.extend(range(gap_start_min, latest_start + 1))
+        
         return [minutes_to_time(m) for m in result]
